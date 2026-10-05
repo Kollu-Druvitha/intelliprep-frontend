@@ -4,18 +4,25 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import Shell from "@/components/Shell";
 
 interface User {
   id: string;
   name: string;
   email: string;
-  githubUsername?: string;
 }
 
 interface Stats {
   totalSolved: number;
   byDifficulty: { _id: string; count: number }[];
 }
+
+const features = [
+  { href: "/resume", label: "Resume Analyzer", description: "Check your resume against a job description" },
+  { href: "/mentor", label: "AI Mentor", description: "Get feedback on your code" },
+  { href: "/mock-interview", label: "Mock Interview", description: "Practice with an AI interviewer" },
+  { href: "/roadmap", label: "Your Roadmap", description: "See your personalized study plan" },
+];
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -36,10 +43,8 @@ export default function DashboardPage() {
           apiFetch("/api/auth/me"),
           apiFetch("/api/activities/stats"),
         ]);
-
         const meData = await meRes.json();
         const statsData = await statsRes.json();
-
         setUser(meData.user);
         setStats(statsData);
       } catch (err) {
@@ -54,73 +59,47 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-500">Loading dashboard...</p>
-      </div>
+      <Shell>
+        <p className="text-graphite">Loading your dashboard…</p>
+      </Shell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <header className="mb-8">
-        <h1 className="text-3xl font-semibold text-gray-900">
-          Welcome back, {user?.name}
-        </h1>
-        <p className="text-gray-500">{user?.email}</p>
+    <Shell>
+      <header className="mb-10">
+        <h1 className="font-display text-3xl">Welcome back, {user?.name}</h1>
+        <p className="mt-1 text-sm text-graphite">{user?.email}</p>
       </header>
 
-      <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">Problems Solved</p>
-          <p className="mt-1 text-3xl font-semibold text-gray-900">
-            {stats?.totalSolved ?? 0}
-          </p>
+      <section className="mb-12 flex flex-wrap items-baseline gap-x-10 gap-y-4 border-y border-rule py-6">
+        <div>
+          <p className="font-mono text-4xl">{stats?.totalSolved ?? 0}</p>
+          <p className="mt-1 text-sm text-graphite">problems solved</p>
         </div>
-
         {stats?.byDifficulty.map((d) => (
-          <div
-            key={d._id}
-            className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
-          >
-            <p className="text-sm text-gray-500">{d._id}</p>
-            <p className="mt-1 text-3xl font-semibold text-gray-900">{d.count}</p>
+          <div key={d._id} className="border-l border-rule pl-10">
+            <p className="font-mono text-2xl text-graphite">{d.count}</p>
+            <p className="mt-1 text-sm text-graphite">{d._id}</p>
           </div>
         ))}
       </section>
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Link
-          href="/resume"
-          className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition hover:border-blue-400"
-        >
-          <h3 className="font-medium text-gray-900">Resume Analyzer</h3>
-          <p className="mt-1 text-sm text-gray-500">Check your resume against a job description</p>
-        </Link>
-
-        <Link
-          href="/mentor"
-          className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition hover:border-blue-400"
-        >
-          <h3 className="font-medium text-gray-900">AI Mentor</h3>
-          <p className="mt-1 text-sm text-gray-500">Get feedback on your code</p>
-        </Link>
-
-        <Link
-          href="/mock-interview"
-          className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition hover:border-blue-400"
-        >
-          <h3 className="font-medium text-gray-900">Mock Interview</h3>
-          <p className="mt-1 text-sm text-gray-500">Practice with an AI interviewer</p>
-        </Link>
-
-        <Link
-          href="/roadmap"
-          className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition hover:border-blue-400"
-        >
-          <h3 className="font-medium text-gray-900">Your Roadmap</h3>
-          <p className="mt-1 text-sm text-gray-500">See your personalized study plan</p>
-        </Link>
+      <section>
+        <p className="mb-4 text-sm text-graphite">Continue</p>
+        <div className="divide-y divide-rule border-y border-rule">
+          {features.map((f) => (
+            <Link
+              key={f.href}
+              href={f.href}
+              className="group -ml-4 flex items-baseline gap-4 border-l-2 border-transparent py-4 pl-4 transition-colors hover:border-signal"
+            >
+              <span className="font-display text-lg group-hover:text-signal">{f.label}</span>
+              <span className="text-sm text-graphite">{f.description}</span>
+            </Link>
+          ))}
+        </div>
       </section>
-    </div>
+    </Shell>
   );
 }

@@ -1,1 +1,33 @@
 @import "tailwindcss";
+
+@theme {
+  --color-paper: #f6f5f1;
+  --color-ink: #1b1d23;
+  --color-graphite: #5b5f6b;
+  --color-rule: #d9d7d0;
+  --color-signal: #1f6f54;
+  --color-signal-soft: #e3efe9;
+  --color-flag: #c98a1e;
+  --color-flag-soft: #fbf1df;
+  --color-danger: #a13d3d;
+  --color-danger-soft: #f7e9e8;
+
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
