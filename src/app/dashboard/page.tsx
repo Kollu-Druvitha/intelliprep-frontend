@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
@@ -17,6 +17,21 @@ interface Stats {
   byDifficulty: { _id: string; count: number }[];
 }
 
+interface LeetcodeStats {
+  username: string;
+  ranking: number | null;
+  totalSolved: number;
+  easySolved: number;
+  mediumSolved: number;
+  hardSolved: number;
+}
+
+type LeetcodeState =
+  | { status: "loading" }
+  | { status: "not-connected" }
+  | { status: "error"; message: string }
+  | { status: "ready"; data: LeetcodeStats };
+
 const features = [
   { href: "/resume", label: "Resume Analyzer", description: "Check your resume against a job description" },
   { href: "/mentor", label: "AI Mentor", description: "Get feedback on your code" },
@@ -29,6 +44,46 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [leetcode, setLeetcode] = useState<LeetcodeState>({ status: "loading" });
+  const [handle, setHandle] = useState("");
+  const [connecting, setConnecting] = useState(false);
+
+  const loadLeetcode = useCallback(async () => {
+    setLeetcode({ status: "loading" });
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const res = await apiFetch("/api/leetcode", { signal: controller.signal });
+      const data = await res.json();
+
+      if (res.status === 400) {
+        setLeetcode({ status: "not-connected" });
+        return;
+      }
+      if (!res.ok) {
+        setLeetcode({
+          status: "error",
+          message: data.message || "Could not load LeetCode stats",
+        });
+        return;
+      }
+      setLeetcode({ status: "ready", data });
+    } catch (err) {
+      if ((err as Error).name === "AbortError") {
+        setLeetcode({
+          status: "error",
+          message: "LeetCode is taking too long to respond. Check the backend terminal.",
+        });
+      } else {
+        setLeetcode({ status: "error", message: "Could not reach the server." });
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -55,7 +110,30 @@ export default function DashboardPage() {
     }
 
     loadDashboard();
-  }, [router]);
+    loadLeetcode(); // runs independently so a slow LeetCode call never blocks the page
+  }, [router, loadLeetcode]);
+
+  async function connectLeetcode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!handle.trim()) return;
+
+    setConnecting(true);
+    try {
+      const res = await apiFetch("/api/users/me", {
+        method: "PATCH",
+        body: JSON.stringify({ leetcodeUsername: handle.trim() }),
+      });
+
+      if (!res.ok) {
+        setLeetcode({ status: "error", message: "Could not save your LeetCode username." });
+        return;
+      }
+
+      await loadLeetcode();
+    } finally {
+      setConnecting(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -83,6 +161,67 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-graphite">{d._id}</p>
           </div>
         ))}
+      </section>
+
+      <section className="mb-12">
+        <p className="mb-4 text-sm text-graphite">LeetCode</p>
+
+        {leetcode.status === "loading" && (
+          <p className="text-sm text-graphite">Fetching your LeetCode stats…</p>
+        )}
+
+        {(leetcode.status === "not-connected" || leetcode.status === "error") && (
+          <form onSubmit={connectLeetcode} className="max-w-sm">
+            {leetcode.status === "error" && (
+              <p className="mb-4 border-l-2 border-danger pl-3 text-sm text-danger">
+                {leetcode.message}
+              </p>
+            )}
+            <label className="block text-sm text-graphite">LeetCode username</label>
+            <input
+              type="text"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              className="mb-4 w-full border-0 border-b border-rule bg-transparent py-2 text-ink outline-none focus:border-signal"
+            />
+            <button
+              type="submit"
+              disabled={connecting || !handle.trim()}
+              className="bg-ink px-5 py-2 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {connecting ? "Connecting…" : "Connect"}
+            </button>
+          </form>
+        )}
+
+        {leetcode.status === "ready" && (
+          <div className="flex flex-wrap items-baseline gap-x-10 gap-y-4 border-y border-rule py-6">
+            <div>
+              <p className="font-mono text-4xl">{leetcode.data.totalSolved}</p>
+              <p className="mt-1 text-sm text-graphite">
+                solved as {leetcode.data.username}
+              </p>
+            </div>
+            <div className="border-l border-rule pl-10">
+              <p className="font-mono text-2xl text-graphite">{leetcode.data.easySolved}</p>
+              <p className="mt-1 text-sm text-graphite">Easy</p>
+            </div>
+            <div className="border-l border-rule pl-10">
+              <p className="font-mono text-2xl text-graphite">{leetcode.data.mediumSolved}</p>
+              <p className="mt-1 text-sm text-graphite">Medium</p>
+            </div>
+            <div className="border-l border-rule pl-10">
+              <p className="font-mono text-2xl text-graphite">{leetcode.data.hardSolved}</p>
+              <p className="mt-1 text-sm text-graphite">Hard</p>
+            </div>
+            <div className="border-l border-rule pl-10">
+              <p className="font-mono text-2xl text-graphite">
+                {leetcode.data.ranking ? leetcode.data.ranking.toLocaleString() : "n/a"}
+              </p>
+              <p className="mt-1 text-sm text-graphite">global ranking</p>
+            </div>
+          </div>
+        )}
       </section>
 
       <section>
